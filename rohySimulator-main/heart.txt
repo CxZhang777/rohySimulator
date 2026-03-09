@@ -1,0 +1,92 @@
+[
+  {
+    "test_name": "Troponin I, cardiac",
+    "group": "Cardiology Crisis",
+    "category": "General",
+    "min_value": 0,
+    "max_value": 0.04,
+    "unit": "ng/mL",
+    "normal_samples": [0.01, 0.03, 0.02]
+  },
+  {
+    "test_name": "Troponin T, cardiac",
+    "group": "Cardiology Crisis",
+    "category": "General",
+    "min_value": 0,
+    "max_value": 0.01,
+    "unit": "ng/mL",
+    "normal_samples": [0.005, 0.008, 0.002]
+  },
+  {
+    "test_name": "Troponin I, High Sensitivity",
+    "group": "Cardiology Crisis",
+    "category": "Female",
+    "min_value": 0,
+    "max_value": 15,
+    "unit": "ng/L",
+    "normal_samples": [5, 12, 8]
+  },
+  {
+    "test_name": "Troponin I, High Sensitivity",
+    "group": "Cardiology Crisis",
+    "category": "Male",
+    "min_value": 0,
+    "max_value": 20,
+    "unit": "ng/L",
+    "normal_samples": [8, 18, 12]
+  },
+  {
+    "test_name": "Troponin T, High Sensitivity",
+    "group": "Cardiology Crisis",
+    "category": "Female",
+    "min_value": 0,
+    "max_value": 10,
+    "unit": "ng/L",
+    "normal_samples": [3, 8, 5]
+  },
+  {
+    "test_name": "Troponin T, High Sensitivity",
+    "group": "Cardiology Crisis",
+    "category": "Male",
+    "min_value": 0,
+    "max_value": 15,
+    "unit": "ng/L",
+    "normal_samples": [5, 12, 9]
+  },
+  {
+    "test_name": "Creatine Kinase, MB Isoenzyme",
+    "group": "Cardiology Crisis",
+    "category": "General",
+    "min_value": 0,
+    "max_value": 5,
+    "unit": "% of Total CK",
+    "normal_samples": [1.5, 3.2, 2.1]
+  },
+  {
+    "test_name": "Myoglobin, serum",
+    "group": "Cardiology Crisis",
+    "category": "General",
+    "min_value": 0,
+    "max_value": 100,
+    "unit": "µg/L",
+    "normal_samples": [25, 65, 40]
+  },
+  {
+    "test_name": "B-type Natriuretic Peptide (BNP)",
+    "group": "Cardiology Crisis",
+    "category": "General",
+    "min_value": 0,
+    "max_value": 100,
+    "unit": "pg/mL",
+    "normal_samples": [20, 60, 45]
+  },
+  {
+    "test_name": "NT-pro-BNP (Heart Failure Unlikely)",
+    "group": "Cardiology Crisis",
+    "category": "General",
+    "min_value": 0,
+    "max_value": 300,
+    "unit": "pg/mL",
+    "normal_samples": [50, 180, 120]
+  }
+]

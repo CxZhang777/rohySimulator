@@ -1,0 +1,51 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+*.env
+# Server files
+server/.env
+server/database.sqlite
+
+# User uploads
+public/uploads/
+
+# Production files
+frontend/
+production/.env
+
+# Claude workspace
+.claude/
+
+# Misc
+nul
+.Rhistory
+*.svg.bak
+
+# Local documentation and fixes
+BROWSER_CACHE_CLEAR.md
+IMAGE_SERVING_FIX.md
+LATEST_UPDATES.md
+PORT_CONFIGURATION_FIX.md
+docs/plans/

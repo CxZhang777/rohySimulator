@@ -1,0 +1,186 @@
+{
+    "scenarios": [
+        {
+            "id": "mi_progression",
+            "name": "Untreated MI Progression",
+            "description": "Acute MI progressing to cardiogenic shock and cardiac arrest.",
+            "timeline": [
+                {
+                    "time": 0,
+                    "rhythm": "NSR",
+                    "params": {
+                        "hr": 80,
+                        "spo2": 98,
+                        "rr": 16,
+                        "bpSys": 125,
+                        "bpDia": 82
+                    },
+                    "conditions": {
+                        "stElev": 0,
+                        "pvc": false,
+                        "wideQRS": false
+                    }
+                },
+                {
+                    "time": 10,
+                    "params": {
+                        "hr": 110,
+                        "bpSys": 145,
+                        "bpDia": 95,
+                        "rr": 22
+                    },
+                    "conditions": {
+                        "stElev": 2.0
+                    }
+                },
+                {
+                    "time": 25,
+                    "params": {
+                        "hr": 125,
+                        "bpSys": 100,
+                        "bpDia": 60,
+                        "spo2": 92
+                    },
+                    "conditions": {
+                        "stElev": 4.5,
+                        "pvc": true
+                    }
+                },
+                {
+                    "time": 40,
+                    "rhythm": "VTach",
+                    "params": {
+                        "hr": 160,
+                        "bpSys": 60,
+                        "bpDia": 40,
+                        "spo2": 80
+                    },
+                    "conditions": {
+                        "wideQRS": true
+                    }
+                },
+                {
+                    "time": 60,
+                    "rhythm": "VFib",
+                    "params": {
+                        "spo2": 40
+                    },
+                    "conditions": {
+                        "stElev": 0
+                    }
+                },
+                {
+                    "time": 80,
+                    "rhythm": "Asystole",
+                    "params": {
+                        "spo2": 0
+                    }
+                }
+            ]
+        },
+        {
+            "id": "hypertensive_crisis",
+            "name": "Hypertensive Crisis",
+            "description": "Rapid increase in blood pressure leading to instability.",
+            "timeline": [
+                {
+                    "time": 0,
+                    "rhythm": "NSR",
+                    "params": {
+                        "hr": 75,
+                        "spo2": 99,
+                        "rr": 14,
+                        "bpSys": 130,
+                        "bpDia": 85
+                    },
+                    "conditions": {
+                        "stElev": 0
+                    }
+                },
+                {
+                    "time": 15,
+                    "params": {
+                        "hr": 90,
+                        "bpSys": 180,
+                        "bpDia": 110,
+                        "rr": 18
+                    }
+                },
+                {
+                    "time": 30,
+                    "params": {
+                        "hr": 105,
+                        "bpSys": 220,
+                        "bpDia": 130,
+                        "spo2": 96
+                    },
+                    "conditions": {
+                        "stElev": -1.0
+                    }
+                },
+                {
+                    "time": 45,
+                    "params": {
+                        "hr": 115,
+                        "bpSys": 240,
+                        "bpDia": 150,
+                        "rr": 24
+                    }
+                }
+            ]
+        },
+        {
+            "id": "septic_shock",
+            "name": "Septic Shock",
+            "description": "Vasodilation leading to severe hypotension and tachycardia.",
+            "timeline": [
+                {
+                    "time": 0,
+                    "rhythm": "NSR",
+                    "params": {
+                        "hr": 95,
+                        "spo2": 94,
+                        "rr": 20,
+                        "bpSys": 110,
+                        "bpDia": 70,
+                        "temp": 38.5
+                    }
+                },
+                {
+                    "time": 20,
+                    "params": {
+                        "hr": 115,
+                        "spo2": 90,
+                        "rr": 26,
+                        "bpSys": 90,
+                        "bpDia": 50,
+                        "temp": 39.5
+                    }
+                },
+                {
+                    "time": 40,
+                    "params": {
+                        "hr": 135,
+                        "spo2": 85,
+                        "rr": 32,
+                        "bpSys": 70,
+                        "bpDia": 35
+                    }
+                },
+                {
+                    "time": 60,
+                    "rhythm": "NSR",
+                    "params": {
+                        "hr": 150,
+                        "spo2": 75,
+                        "bpSys": 50,
+                        "bpDia": 20
+                    },
+                    "conditions": {
+                        "noise": 3
+                    }
+                }
+            ]
+        }
+    ]
+}
