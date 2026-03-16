@@ -2444,82 +2444,66 @@ function EmotionResponsesTable({ sessionsList, dateFilter, token }) {
                         <div className="text-center py-8 text-neutral-500">
                             No emotion responses recorded for this session
                         </div>
-                    ) : (
-                        rows.map((r, i) => {
-                            const mins = Math.floor(r.elapsed_seconds / 60);
-                            const secs = r.elapsed_seconds % 60;
-                            const s = r.scores || {};
-                            const paTotal = PA_IDS.reduce((acc, k) => acc + (s[k] || 0), 0);
-                            const naTotal = NA_IDS.reduce((acc, k) => acc + (s[k] || 0), 0);
-
-                            return (
-                                <div key={r.id} className="bg-neutral-800 rounded-lg border border-neutral-700 p-4">
-                                    {/* Row header */}
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-neutral-500 text-sm font-mono">#{i + 1}</span>
-                                            <span className="font-mono text-sm text-white">{mins}m {String(secs).padStart(2, '0')}s</span>
-                                            <span className="text-neutral-400 text-xs">{new Date(r.submitted_at).toLocaleString()}</span>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <span className="px-2 py-0.5 rounded text-xs font-bold bg-emerald-900/50 text-emerald-400 border border-emerald-800">
-                                                PA {paTotal}/50
-                                            </span>
-                                            <span className="px-2 py-0.5 rounded text-xs font-bold bg-rose-900/50 text-rose-400 border border-rose-800">
-                                                NA {naTotal}/50
-                                            </span>
-                                        </div>
+                    ) : rows.map((r, i) => {
+                        const mins = Math.floor(r.elapsed_seconds / 60);
+                        const secs = r.elapsed_seconds % 60;
+                        const s = r.scores || {};
+                        const paTotal = PA_IDS.reduce((acc, k) => acc + (s[k] || 0), 0);
+                        const naTotal = NA_IDS.reduce((acc, k) => acc + (s[k] || 0), 0);
+                        return (
+                            <div key={r.id} className="bg-neutral-800 rounded-lg border border-neutral-700 p-4">
+                                {/* Card header */}
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-neutral-500 text-sm">#{i + 1}</span>
+                                        <span className="font-mono text-sm text-white">{mins}m {String(secs).padStart(2,'0')}s</span>
+                                        <span className="text-neutral-400 text-xs">{new Date(r.submitted_at).toLocaleString()}</span>
                                     </div>
-
-                                    {/* Scores grid */}
-                                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-                                        {/* PA column */}
-                                        <div>
-                                            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wide mb-1">Positive Affect</p>
-                                            {PA_IDS.map(id => (
-                                                <ScoreRow key={id} id={id} score={s[id]} pa={true} />
-                                            ))}
-                                        </div>
-                                        {/* NA column */}
-                                        <div>
-                                            <p className="text-xs font-bold text-rose-500 uppercase tracking-wide mb-1">Negative Affect</p>
-                                            {NA_IDS.map(id => (
-                                                <ScoreRow key={id} id={id} score={s[id]} pa={false} />
-                                            ))}
-                                        </div>
+                                    <div className="flex gap-2">
+                                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-emerald-900/50 text-emerald-400 border border-emerald-800">PA {paTotal}/50</span>
+                                        <span className="px-2 py-0.5 rounded text-xs font-bold bg-rose-900/50 text-rose-400 border border-rose-800">NA {naTotal}/50</span>
                                     </div>
                                 </div>
-                            );
-                        })
-                    )}
+                                {/* Score grid */}
+                                <div className="grid grid-cols-2 gap-x-6 gap-y-0.5">
+                                    <div>
+                                        <p className="text-xs font-bold text-emerald-600 uppercase tracking-wide mb-1">Positive Affect</p>
+                                        {PA_IDS.map(id => (
+                                            <div key={id} className="flex items-center gap-1.5 py-0.5">
+                                                <span className="text-sm leading-none">{PANAS_EMOJI[id] ?? '❓'}</span>
+                                                <span className="text-xs text-neutral-300 w-[88px] shrink-0">{id}</span>
+                                                <div className="flex gap-0.5">
+                                                    {[1,2,3,4,5].map(n => (
+                                                        <span key={n} className={`w-4 h-4 rounded-sm text-[10px] flex items-center justify-center font-bold ${n <= (s[id]||0) ? 'bg-emerald-600 text-white' : 'bg-neutral-700 text-neutral-600'}`}>{n}</span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-bold text-rose-500 uppercase tracking-wide mb-1">Negative Affect</p>
+                                        {NA_IDS.map(id => (
+                                            <div key={id} className="flex items-center gap-1.5 py-0.5">
+                                                <span className="text-sm leading-none">{PANAS_EMOJI[id] ?? '❓'}</span>
+                                                <span className="text-xs text-neutral-300 w-[88px] shrink-0">{id}</span>
+                                                <div className="flex gap-0.5">
+                                                    {[1,2,3,4,5].map(n => (
+                                                        <span key={n} className={`w-4 h-4 rounded-sm text-[10px] flex items-center justify-center font-bold ${n <= (s[id]||0) ? 'bg-rose-600 text-white' : 'bg-neutral-700 text-neutral-600'}`}>{n}</span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             ) : (
                 <div className="text-center py-12 text-neutral-500">
                     Select a session above to view its emotion responses
                 </div>
             )}
-        </div>
-    );
-}
-
-// Single emotion score row used inside EmotionResponsesTable
-function ScoreRow({ id, score, pa }) {
-    const emoji = PANAS_EMOJI[id] ?? '❓';
-    const filled = score ?? 0;
-    return (
-        <div className="flex items-center gap-1.5 py-0.5">
-            <span className="text-sm leading-none">{emoji}</span>
-            <span className="text-xs text-neutral-300 w-[88px] shrink-0">{id}</span>
-            <div className="flex gap-0.5">
-                {[1,2,3,4,5].map(n => (
-                    <span key={n} className={`w-4 h-4 rounded-sm text-[10px] flex items-center justify-center font-bold ${
-                        n <= filled
-                            ? pa ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
-                            : 'bg-neutral-700 text-neutral-600'
-                    }`}>{n}</span>
-                ))}
-            </div>
-            {score == null && <span className="text-xs text-neutral-600 italic ml-1">—</span>}
         </div>
     );
 }

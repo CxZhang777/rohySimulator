@@ -1511,40 +1511,9 @@ router.get('/export/emotion-responses', authenticateToken, requireAdmin, (req, r
 
     sql += ' ORDER BY er.submitted_at ASC';
 
-    const PANAS_IDS = [
-        'Interested','Excited','Strong','Enthusiastic','Proud',
-        'Alert','Inspired','Determined','Attentive','Active',
-        'Distressed','Upset','Guilty','Ashamed','Afraid',
-        'Scared','Hostile','Irritable','Nervous','Jittery'
-    ];
-
     db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-
-        // Expand scores JSON into individual columns for easy analysis
-        const expanded = rows.map(r => {
-            const scores = r.scores ? JSON.parse(r.scores) : {};
-            const pa = ['Interested','Excited','Strong','Enthusiastic','Proud','Alert','Inspired','Determined','Attentive','Active'];
-            const na = ['Distressed','Upset','Guilty','Ashamed','Afraid','Scared','Hostile','Irritable','Nervous','Jittery'];
-            const paTotal = pa.reduce((s, k) => s + (scores[k] || 0), 0);
-            const naTotal = na.reduce((s, k) => s + (scores[k] || 0), 0);
-            const row = {
-                id: r.id,
-                session_id: r.session_id,
-                username: r.username,
-                email: r.email,
-                case_name: r.case_name,
-                session_start: r.session_start,
-                elapsed_seconds: r.elapsed_seconds,
-                submitted_at: r.submitted_at,
-                pa_total: paTotal || '',
-                na_total: naTotal || '',
-            };
-            for (const id of PANAS_IDS) row[id] = scores[id] || '';
-            return row;
-        });
-
-        const csv = convertToCSV(expanded);
+        const csv = convertToCSV(rows);
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', 'attachment; filename=emotion_responses.csv');
         res.send(csv);
@@ -3306,7 +3275,6 @@ router.post('/sessions/:sessionId/emotion', authenticateToken, (req, res) => {
     if (!scores || typeof scores !== 'object') {
         return res.status(400).json({ error: 'scores object is required' });
     }
-
     const PANAS_IDS = [
         'Interested','Excited','Strong','Enthusiastic','Proud',
         'Alert','Inspired','Determined','Attentive','Active',
@@ -3320,12 +3288,10 @@ router.post('/sessions/:sessionId/emotion', authenticateToken, (req, res) => {
         }
     }
 
-    const scoresJson = JSON.stringify(scores);
-
     db.run(
         `INSERT INTO emotion_responses (session_id, user_id, emotion, intensity, influence, elapsed_seconds, scores)
          VALUES (?, ?, 'PANAS', 0, 0, ?, ?)`,
-        [sessionId, req.user.id, elapsed_seconds || 0, scoresJson],
+        [sessionId, req.user.id, elapsed_seconds || 0, JSON.stringify(scores)],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID, message: 'Emotion response saved' });
