@@ -181,25 +181,32 @@ const storage = multer.diskStorage({
 
 // File type validation
 const fileFilter = (req, file, cb) => {
-    // Allowed MIME types for images
+    // Allowed MIME types for images, audio, and video
     const allowedMimes = [
         'image/jpeg',
         'image/png',
         'image/gif',
         'image/webp',
         'image/svg+xml',
-
-          // audio
+        // audio
         'audio/mpeg',
         'audio/wav',
         'audio/ogg',
         'audio/webm',
-        'audio/mp4'
+        'audio/mp4',
+        // video
+        'video/mp4',
+        'video/webm',
+        'video/ogg',
+        'video/quicktime',
+        'video/x-msvideo',
+        'video/mpeg'
     ];
 
     // Allowed extensions
     const allowedExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg',
-        '.mp3', '.wav', '.ogg', '.webm', '.m4a'];
+        '.mp3', '.wav', '.ogg', '.webm', '.m4a',
+        '.mp4', '.mov', '.avi', '.ogv', '.mpeg', '.mpg'];
     const ext = path.extname(file.originalname).toLowerCase();
 
     if (allowedMimes.includes(file.mimetype) && allowedExts.includes(ext)) {
@@ -213,7 +220,7 @@ const upload = multer({
     storage: storage,
     fileFilter: fileFilter,
     limits: {
-        fileSize: 50 * 1024 * 1024 // 10MB max
+        fileSize: 100 * 1024 * 1024 // 100MB max
     }
 });
 
@@ -1467,6 +1474,79 @@ router.get('/export/session-settings', authenticateToken, (req, res) => {
         const csv = convertToCSV(rows);
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', 'attachment; filename=session_settings.csv');
+        res.send(csv);
+    });
+});
+
+// GET /api/export/emotion-responses - Export emotion questionnaire responses as CSV (Admin only)
+router.get('/export/emotion-responses', authenticateToken, requireAdmin, (req, res) => {
+    const { start_date, end_date, user_id, case_id } = req.query;
+
+    let sql = `
+        SELECT
+            er.id,
+            er.session_id,
+            er.elapsed_seconds,
+            er.emotion,
+            er.intensity,
+            er.influence,
+            er.submitted_at,
+            u.username,
+            u.email,
+            u.role,
+            c.name  AS case_name,
+            s.start_time AS session_start
+        FROM emotion_responses er
+        JOIN sessions s ON er.session_id = s.id
+        JOIN cases   c ON s.case_id = c.id
+        JOIN users   u ON er.user_id  = u.id
+        WHERE 1=1
+    `;
+    const params = [];
+
+    if (user_id)    { sql += ' AND er.user_id = ?';    params.push(user_id); }
+    if (case_id)    { sql += ' AND s.case_id = ?';     params.push(case_id); }
+    if (start_date) { sql += ' AND er.submitted_at >= ?'; params.push(start_date); }
+    if (end_date)   { sql += ' AND er.submitted_at <= ?'; params.push(end_date); }
+
+    sql += ' ORDER BY er.submitted_at ASC';
+
+    const PANAS_IDS = [
+        'Interested','Excited','Strong','Enthusiastic','Proud',
+        'Alert','Inspired','Determined','Attentive','Active',
+        'Distressed','Upset','Guilty','Ashamed','Afraid',
+        'Scared','Hostile','Irritable','Nervous','Jittery'
+    ];
+
+    db.all(sql, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+
+        // Expand scores JSON into individual columns for easy analysis
+        const expanded = rows.map(r => {
+            const scores = r.scores ? JSON.parse(r.scores) : {};
+            const pa = ['Interested','Excited','Strong','Enthusiastic','Proud','Alert','Inspired','Determined','Attentive','Active'];
+            const na = ['Distressed','Upset','Guilty','Ashamed','Afraid','Scared','Hostile','Irritable','Nervous','Jittery'];
+            const paTotal = pa.reduce((s, k) => s + (scores[k] || 0), 0);
+            const naTotal = na.reduce((s, k) => s + (scores[k] || 0), 0);
+            const row = {
+                id: r.id,
+                session_id: r.session_id,
+                username: r.username,
+                email: r.email,
+                case_name: r.case_name,
+                session_start: r.session_start,
+                elapsed_seconds: r.elapsed_seconds,
+                submitted_at: r.submitted_at,
+                pa_total: paTotal || '',
+                na_total: naTotal || '',
+            };
+            for (const id of PANAS_IDS) row[id] = scores[id] || '';
+            return row;
+        });
+
+        const csv = convertToCSV(expanded);
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=emotion_responses.csv');
         res.send(csv);
     });
 });
@@ -3216,6 +3296,68 @@ router.get('/sessions/:sessionId/available-radiology', authenticateToken, (req, 
     );
 });
 
+// ==================== EMOTION QUESTIONNAIRE ====================
+
+// POST /api/sessions/:sessionId/emotion - Save PANAS emotion questionnaire response
+router.post('/sessions/:sessionId/emotion', authenticateToken, (req, res) => {
+    const { sessionId } = req.params;
+    const { scores, elapsed_seconds } = req.body;
+
+    if (!scores || typeof scores !== 'object') {
+        return res.status(400).json({ error: 'scores object is required' });
+    }
+
+    const PANAS_IDS = [
+        'Interested','Excited','Strong','Enthusiastic','Proud',
+        'Alert','Inspired','Determined','Attentive','Active',
+        'Distressed','Upset','Guilty','Ashamed','Afraid',
+        'Scared','Hostile','Irritable','Nervous','Jittery'
+    ];
+    for (const id of PANAS_IDS) {
+        const v = scores[id];
+        if (v == null || v < 1 || v > 5) {
+            return res.status(400).json({ error: `Score for "${id}" must be 1–5` });
+        }
+    }
+
+    const scoresJson = JSON.stringify(scores);
+
+    db.run(
+        `INSERT INTO emotion_responses (session_id, user_id, emotion, intensity, influence, elapsed_seconds, scores)
+         VALUES (?, ?, 'PANAS', 0, 0, ?, ?)`,
+        [sessionId, req.user.id, elapsed_seconds || 0, scoresJson],
+        function(err) {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ id: this.lastID, message: 'Emotion response saved' });
+        }
+    );
+});
+
+// GET /api/sessions/:sessionId/emotion - Get emotion responses for a session
+router.get('/sessions/:sessionId/emotion', authenticateToken, (req, res) => {
+    const { sessionId } = req.params;
+
+    db.get('SELECT user_id FROM sessions WHERE id = ?', [sessionId], (err, session) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!session) return res.status(404).json({ error: 'Session not found' });
+        if (session.user_id !== req.user.id && req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+        db.all(
+            'SELECT * FROM emotion_responses WHERE session_id = ? ORDER BY submitted_at ASC',
+            [sessionId],
+            (err, rows) => {
+                if (err) return res.status(500).json({ error: err.message });
+                const parsed = (rows || []).map(r => ({
+                    ...r,
+                    scores: r.scores ? JSON.parse(r.scores) : null,
+                }));
+                res.json({ responses: parsed });
+            }
+        );
+    });
+});
+
 // GET /api/sessions/:sessionId/radiology-orders - Get radiology orders for session
 router.get('/sessions/:sessionId/radiology-orders', authenticateToken, (req, res) => {
     const { sessionId } = req.params;
@@ -3328,6 +3470,7 @@ router.post('/sessions/:sessionId/order-radiology', authenticateToken, (req, res
             const findings = configuredResult?.findings || study?.normal_findings || '';
             const interpretation = configuredResult?.interpretation || study?.normal_interpretation || '';
             const imageUrl = configuredResult?.imageUrl || null;
+            const videoUrl = configuredResult?.videoUrl || null;
 
             // Build result data including configured findings
             const resultData = {
@@ -3335,6 +3478,7 @@ router.post('/sessions/:sessionId/order-radiology', authenticateToken, (req, res
                 body_region: bodyRegion,
                 findings: findings,
                 interpretation: interpretation,
+                videoUrl: videoUrl,
                 hasConfiguredResult: !!configuredResult,
                 isCustomStudy: isCustomStudy,
                 isNormalDefault: !configuredResult?.findings && !configuredResult?.interpretation && !!study?.normal_findings

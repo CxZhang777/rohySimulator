@@ -2169,6 +2169,23 @@ function initDb() {
         db.run(`CREATE INDEX IF NOT EXISTS idx_active_treatments_session ON active_treatments(session_id)`);
         db.run(`CREATE INDEX IF NOT EXISTS idx_active_treatments_order ON active_treatments(treatment_order_id)`);
         db.run(`CREATE INDEX IF NOT EXISTS idx_case_treatments_case ON case_treatments(case_id)`);
+        // ==================== EMOTION QUESTIONNAIRE RESPONSES ====================
+        db.run(`CREATE TABLE IF NOT EXISTS emotion_responses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER NOT NULL,
+            user_id INTEGER,
+            emotion TEXT NOT NULL,
+            intensity INTEGER NOT NULL,
+            influence INTEGER NOT NULL,
+            elapsed_seconds INTEGER NOT NULL DEFAULT 0,
+            submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(session_id) REFERENCES sessions(id)
+        )`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_emotion_responses_session ON emotion_responses(session_id)`);
+        db.run(`CREATE INDEX IF NOT EXISTS idx_emotion_responses_user ON emotion_responses(user_id)`);
+        // Migration: add scores column if it doesn't exist (JSON blob of all 20 PANAS ratings)
+        db.run(`ALTER TABLE emotion_responses ADD COLUMN scores TEXT`, () => {/* ignore if already exists */});
+
         db.run(`CREATE INDEX IF NOT EXISTS idx_case_treatments_type ON case_treatments(treatment_type)`, [], function(err) {
             if (err) {
                 console.error('Error creating treatment indexes:', err);

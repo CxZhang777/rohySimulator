@@ -15,6 +15,7 @@ export default function RadiologyEditor({ caseData, setCaseData }) {
     const toast = useToast();
     const [uploading, setUploading] = useState(false);
     const [uploadingIdx, setUploadingIdx] = useState(null);
+    const [uploadingType, setUploadingType] = useState(null); // 'image' or 'video'
     const [studies, setStudies] = useState([]);
     const [modalities, setModalities] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -149,21 +150,19 @@ export default function RadiologyEditor({ caseData, setCaseData }) {
         updateRadiology(radiology.filter((_, i) => i !== idx));
     };
 
-    // Handle image upload
-    const handleImageUpload = async (idx, file) => {
+    // Handle image or video upload; fileType is 'image' or 'video'
+    const handleFileUpload = async (idx, file, fileType) => {
         if (!file || idx < 0 || idx >= radiology.length) return;
-        const isImage = file.type?.startsWith('image/');
-        const isVideo = file.type?.startsWith('video/');
-        if (!isImage && !isVideo) {
-        toast.error('Only image/video files are supported');
-        return;
+        if (fileType === 'video' && file.size > 100 * 1024 * 1024) {
+            toast.error('Video file must be under 100MB');
+            return;
         }
         setUploading(true);
         setUploadingIdx(idx);
+        setUploadingType(fileType);
         try {
             const formData = new FormData();
             formData.append('photo', file);
-
             const token = AuthService.getToken();
             const res = await fetch(apiUrl('/upload'), {
                 method: 'POST',
@@ -175,19 +174,24 @@ export default function RadiologyEditor({ caseData, setCaseData }) {
                 throw new Error(errorData.error || `Upload failed with status ${res.status}`);
             }
             const data = await res.json();
-
             if (data.imageUrl) {
-                updateStudy(idx, 'imageUrl', data.imageUrl);
-                toast.success('Image uploaded successfully');
+                if (fileType === 'video') {
+                    updateStudy(idx, 'videoUrl', data.imageUrl);
+                    toast.success('Video uploaded successfully');
+                } else {
+                    updateStudy(idx, 'imageUrl', data.imageUrl);
+                    toast.success('Image uploaded successfully');
+                }
             } else {
-                throw new Error('No image URL returned from server');
+                throw new Error('No URL returned from server');
             }
         } catch (err) {
             console.error('Upload failed:', err);
-            toast.error(err.message || 'Failed to upload image');
+            toast.error(err.message || 'Failed to upload file');
         } finally {
             setUploading(false);
             setUploadingIdx(null);
+            setUploadingType(null);
         }
     };
 
@@ -473,46 +477,94 @@ export default function RadiologyEditor({ caseData, setCaseData }) {
                                                 </div>
                                             </div>
 
-                                            {/* Image Upload */}
-                                            <div className="mb-3">
-                                                <label className="text-xs text-neutral-400 mb-1.5 block">Result Image</label>
-                                                {study.imageUrl ? (
-                                                    <div className="relative group inline-block">
-                                                        <img
-                                                            src={study.imageUrl}
-                                                            alt={study.studyName}
-                                                            className="h-16 w-auto rounded border border-neutral-600 object-cover"
-                                                        />
-                                                        <button
-                                                            onClick={() => updateStudy(idx, 'imageUrl', '')}
-                                                            className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-500 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                            title="Remove image"
-                                                        >
-                                                            <Trash2 className="w-3 h-3 text-white" />
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <label className="inline-flex items-center gap-2 px-3 py-2 bg-neutral-800 hover:bg-neutral-700 rounded cursor-pointer border border-dashed border-neutral-600 text-xs transition-colors">
-                                                        {uploading && uploadingIdx === idx ? (
-                                                            <>
-                                                                <Loader2 className="w-4 h-4 text-neutral-400 animate-spin" />
-                                                                <span className="text-neutral-400">Uploading...</span>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <Upload className="w-4 h-4 text-neutral-400" />
-                                                                <span className="text-neutral-400">Upload</span>
-                                                            </>
-                                                        )}
-                                                        <input
-                                                            type="file"
-                                                            accept="image/*,video/*,.mp4"
-                                                            onChange={e => handleImageUpload(idx, e.target.files?.[0])}
-                                                            className="hidden"
-                                                            disabled={uploading}
-                                                        />
+                                            {/* Study Media: Image + Video */}
+                                            <div className="mb-3 space-y-2">
+                                                {/* Image Upload */}
+                                                <div>
+                                                    <label className="text-xs text-neutral-400 mb-1.5 block">Result Image</label>
+                                                    {study.imageUrl ? (
+                                                        <div className="relative group inline-block">
+                                                            <img
+                                                                src={study.imageUrl}
+                                                                alt={study.studyName}
+                                                                className="h-16 w-auto rounded border border-neutral-600 object-cover"
+                                                            />
+                                                            <button
+                                                                onClick={() => updateStudy(idx, 'imageUrl', '')}
+                                                                className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-500 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                title="Remove image"
+                                                            >
+                                                                <Trash2 className="w-3 h-3 text-white" />
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <label className="inline-flex items-center gap-2 px-3 py-2 bg-neutral-800 hover:bg-neutral-700 rounded cursor-pointer border border-dashed border-neutral-600 text-xs transition-colors">
+                                                            {uploading && uploadingIdx === idx && uploadingType === 'image' ? (
+                                                                <>
+                                                                    <Loader2 className="w-4 h-4 text-neutral-400 animate-spin" />
+                                                                    <span className="text-neutral-400">Uploading...</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Upload className="w-4 h-4 text-neutral-400" />
+                                                                    <span className="text-neutral-400">Upload Image</span>
+                                                                </>
+                                                            )}
+                                                            <input
+                                                                type="file"
+                                                                accept="image/*"
+                                                                onChange={e => handleFileUpload(idx, e.target.files?.[0], 'image')}
+                                                                className="hidden"
+                                                                disabled={uploading}
+                                                            />
+                                                        </label>
+                                                    )}
+                                                </div>
+
+                                                {/* Video Upload */}
+                                                <div>
+                                                    <label className="text-xs text-neutral-400 mb-1.5 block">
+                                                        Result Video <span className="text-neutral-600">(max 100MB)</span>
                                                     </label>
-                                                )}
+                                                    {study.videoUrl ? (
+                                                        <div className="relative group inline-block">
+                                                            <video
+                                                                src={study.videoUrl}
+                                                                className="h-16 w-auto rounded border border-neutral-600"
+                                                                muted
+                                                                preload="metadata"
+                                                            />
+                                                            <button
+                                                                onClick={() => updateStudy(idx, 'videoUrl', '')}
+                                                                className="absolute -top-2 -right-2 bg-red-600 hover:bg-red-500 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                title="Remove video"
+                                                            >
+                                                                <Trash2 className="w-3 h-3 text-white" />
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <label className="inline-flex items-center gap-2 px-3 py-2 bg-neutral-800 hover:bg-neutral-700 rounded cursor-pointer border border-dashed border-neutral-600 text-xs transition-colors">
+                                                            {uploading && uploadingIdx === idx && uploadingType === 'video' ? (
+                                                                <>
+                                                                    <Loader2 className="w-4 h-4 text-neutral-400 animate-spin" />
+                                                                    <span className="text-neutral-400">Uploading...</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Upload className="w-4 h-4 text-neutral-400" />
+                                                                    <span className="text-neutral-400">Upload Video</span>
+                                                                </>
+                                                            )}
+                                                            <input
+                                                                type="file"
+                                                                accept="video/mp4,video/webm,video/ogg,video/quicktime,.mp4,.webm,.ogv,.mov"
+                                                                onChange={e => handleFileUpload(idx, e.target.files?.[0], 'video')}
+                                                                className="hidden"
+                                                                disabled={uploading}
+                                                            />
+                                                        </label>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             {/* Findings & Interpretation */}

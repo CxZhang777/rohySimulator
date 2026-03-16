@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { X, Printer, ZoomIn, ZoomOut, Maximize2, FileText, Clock, User, Calendar, Building2, Stethoscope } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, Printer, ZoomIn, ZoomOut, Maximize2, FileText, Clock, User, Calendar, Building2, Stethoscope, Play, Pause } from 'lucide-react';
 import { AuthService } from '../../services/authService';
 import { apiUrl } from '../../config/api';
 import { usePatientRecord } from '../../services/PatientRecord';
@@ -8,6 +8,8 @@ const RadiologyResultsModal = ({ result, sessionId, patientInfo, onClose }) => {
   const { elicited } = usePatientRecord();
   const [imageZoom, setImageZoom] = useState(1);
   const [showFullImage, setShowFullImage] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef(null);
 
   // Parse result_data for findings
   const resultData = typeof result.result_data === 'string'
@@ -48,9 +50,19 @@ const RadiologyResultsModal = ({ result, sessionId, patientInfo, onClose }) => {
 
   const handlePrint = () => window.print();
 
+  const togglePlay = () => {
+    if (!videoRef.current) return;
+    if (videoRef.current.paused) {
+      videoRef.current.play();
+    } else {
+      videoRef.current.pause();
+    }
+  };
+
   if (!result) return null;
 
   const hasImage = result.image_url;
+  const hasVideo = !!resultData.videoUrl;
   const hasFindings = resultData.findings;
   const hasInterpretation = resultData.interpretation;
 
@@ -143,7 +155,6 @@ const RadiologyResultsModal = ({ result, sessionId, patientInfo, onClose }) => {
             {hasImage && (
               <div className="p-6 bg-black">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-white/70 text-sm font-medium">Study Image</span>
                   <div className="flex items-center gap-2 print:hidden">
                     <button
                       onClick={() => setImageZoom(z => Math.max(0.5, z - 0.25))}
@@ -174,6 +185,36 @@ const RadiologyResultsModal = ({ result, sessionId, patientInfo, onClose }) => {
                     style={{ transform: `scale(${imageZoom})` }}
                     onClick={() => setShowFullImage(true)}
                   />
+                </div>
+              </div>
+            )}
+
+            {/* Video Section */}
+            {hasVideo && (
+              <div className="p-6 bg-black print:hidden">
+                <div className="flex items-center justify-end mb-3">
+                  <button
+                    onClick={togglePlay}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded text-white text-xs transition-colors"
+                  >
+                    {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                    {isPlaying ? 'Pause' : 'Play'}
+                  </button>
+                </div>
+                <div className="rounded-lg overflow-hidden bg-neutral-900">
+                  <video
+                    ref={videoRef}
+                    src={resultData.videoUrl}
+                    controls
+                    className="w-full max-h-96 cursor-pointer"
+                    controlsList="nodownload"
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                    onEnded={() => setIsPlaying(false)}
+                    onClick={togglePlay}
+                  >
+                    Your browser does not support video playback.
+                  </video>
                 </div>
               </div>
             )}

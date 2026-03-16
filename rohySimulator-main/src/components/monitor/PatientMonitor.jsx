@@ -8,6 +8,7 @@ import { useToast } from '../../contexts/ToastContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAudioContext, resumeAudioContext } from '../../utils/alarmAudio';
 import LabValueEditor from '../investigations/LabValueEditor';
+import EmotionQuestionnaire from '../emotion/EmotionQuestionnaire';
 import EventLogger, { COMPONENTS } from '../../services/eventLogger';
 import { apiUrl } from '../../config/api';
 import { usePatientRecord } from '../../services/PatientRecord';
@@ -284,6 +285,12 @@ export default function PatientMonitor({ caseParams, caseData, sessionId, isAdmi
    const [isPlaying, setIsPlaying] = useState(true);
    const [lastFrameTime, setLastFrameTime] = useState(0);
 
+   // --- Emotion Questionnaire State ---
+   const [showQuestionnaire, setShowQuestionnaire] = useState(false);
+   // Ref so interval callbacks can read/write without stale closures or re-mounting
+   const isPausedRef = useRef(false);
+   const questionnaireCounterRef = useRef(0); // counts seconds since last questionnaire
+
    // Load saved settings on mount
    const savedSettings = loadSavedSettings();
    const initialRhythm = savedSettings?.rhythm || FACTORY_DEFAULTS.rhythm;
@@ -398,13 +405,26 @@ export default function PatientMonitor({ caseParams, caseData, sessionId, isAdmi
       prevVitalsRef.current = displayVitals;
    }, [displayVitals, sessionId, eventLog]);
 
-   // Session timer - update every second
+   // Session timer — increments by 1 each second; skips while questionnaire is shown.
+   // Also drives the 2-minute emotion questionnaire trigger.
    useEffect(() => {
       const timer = setInterval(() => {
-         setElapsedTime(Math.floor((Date.now() - sessionStartTime) / 1000));
+         if (isPausedRef.current) return; // frozen while questionnaire is open
+
+         setElapsedTime(prev => prev + 1);
+
+         // Only trigger questionnaire when there is an active session
+         if (sessionId) {
+            questionnaireCounterRef.current += 1;
+            if (questionnaireCounterRef.current >= 120) { // 2 minutes of active simulation
+               questionnaireCounterRef.current = 0;
+               isPausedRef.current = true;
+               setShowQuestionnaire(true);
+            }
+         }
       }, 1000);
       return () => clearInterval(timer);
-   }, [sessionStartTime]);
+   }, [sessionId]);
 
    // Load platform settings for monitor visibility
    useEffect(() => {
@@ -649,6 +669,7 @@ export default function PatientMonitor({ caseParams, caseData, sessionId, isAdmi
       if (!activeScenario || !scenarioPlaying) return;
 
       const interval = setInterval(() => {
+         if (isPausedRef.current) return; // frozen while questionnaire is open
          setScenarioTime(t => {
             const nextTime = t + 1;
             const scenario = scenarioList.find(s => s.id === activeScenario);
@@ -744,6 +765,7 @@ export default function PatientMonitor({ caseParams, caseData, sessionId, isAdmi
       // Yes, scenario sets the "Target" params, this loop adds noise to "Display".
 
       const interval = setInterval(() => {
+         if (isPausedRef.current) return; // frozen while questionnaire is open
          const p = simulationParams.current;
          const rhythmType = rhythm; // Closure capture or ref? Rhythm needs to be in ref too if used here
 
@@ -860,7 +882,7 @@ export default function PatientMonitor({ caseParams, caseData, sessionId, isAdmi
          const dt = time - lastTime;
          lastTime = time;
 
-         if (isPlaying) {
+         if (isPlaying && !isPausedRef.current) {
             updateSimulation(dt);
             drawWaveforms();
          }
@@ -1074,6 +1096,12 @@ export default function PatientMonitor({ caseParams, caseData, sessionId, isAdmi
 
       return () => observer.disconnect();
    }, []);
+
+   // Resume simulation after questionnaire is completed
+   const handleQuestionnaireSubmit = () => {
+      isPausedRef.current = false;
+      setShowQuestionnaire(false);
+   };
 
    return (
       <div ref={containerRef} className="flex flex-col h-full bg-black text-gray-100 font-sans overflow-hidden select-none">
@@ -2194,6 +2222,14 @@ export default function PatientMonitor({ caseParams, caseData, sessionId, isAdmi
 
          </div>
 
+         {/* Mandatory emotion questionnaire — renders above everything, blocks interaction */}
+         {showQuestionnaire && (
+            <EmotionQuestionnaire
+               elapsedSeconds={elapsedTime}
+               sessionId={sessionId}
+               onSubmit={handleQuestionnaireSubmit}
+            />
+         )}
       </div>
    );
 }

@@ -17,6 +17,7 @@ import MedicationManager from './MedicationManager';
 import AgentTemplateManager from './AgentTemplateManager';
 import CaseTreatmentConfig from './CaseTreatmentConfig';
 import { SCENARIO_TEMPLATES, scaleScenarioTimeline } from '../../data/scenarioTemplates';
+import { PANAS_EMOJI } from '../emotion/EmotionQuestionnaire';
 
 export default function ConfigPanel({ onClose, onLoadCase, fullPage = false }) {
     const { isAdmin } = useAuth();
@@ -2065,6 +2066,9 @@ function SystemLogs() {
             case 'session-settings':
                 url = apiUrl('/export/session-settings');
                 break;
+            case 'emotion':
+                url = apiUrl('/export/emotion-responses');
+                break;
         }
 
         // Add date filters if set
@@ -2159,6 +2163,12 @@ function SystemLogs() {
                     className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${activeLogTab === 'events' ? 'border-orange-500 text-white' : 'border-transparent text-neutral-500 hover:text-neutral-300'}`}
                 >
                     Event Log
+                </button>
+                <button
+                    onClick={() => setActiveLogTab('emotion')}
+                    className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors whitespace-nowrap ${activeLogTab === 'emotion' ? 'border-pink-500 text-white' : 'border-transparent text-neutral-500 hover:text-neutral-300'}`}
+                >
+                    💭 Emotion Responses
                 </button>
             </div>
 
@@ -2330,6 +2340,12 @@ function SystemLogs() {
                             </div>
                         )}
                     </div>
+                ) : activeLogTab === 'emotion' ? (
+                    <EmotionResponsesTable
+                        sessionsList={sessionsList}
+                        dateFilter={dateFilter}
+                        token={AuthService.getToken()}
+                    />
                 ) : null}
             </div>
 
@@ -2339,7 +2355,7 @@ function SystemLogs() {
                     <Download className="w-4 h-4" />
                     Export Data (CSV)
                 </h4>
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-5 gap-3">
                     <button
                         onClick={() => downloadCSV('login')}
                         className="flex items-center justify-center gap-2 px-3 py-2 bg-green-700 hover:bg-green-600 text-white rounded text-sm font-medium"
@@ -2368,8 +2384,142 @@ function SystemLogs() {
                         <Download className="w-4 h-4" />
                         Session Settings
                     </button>
+                    <button
+                        onClick={() => downloadCSV('emotion')}
+                        className="flex items-center justify-center gap-2 px-3 py-2 bg-pink-700 hover:bg-pink-600 text-white rounded text-sm font-medium"
+                    >
+                        <Download className="w-4 h-4" />
+                        💭 Emotion Responses
+                    </button>
                 </div>
             </div>
+        </div>
+    );
+}
+
+// ── Emotion Responses table used inside SystemLogs ──────────────────────────
+function EmotionResponsesTable({ sessionsList, dateFilter, token }) {
+    const [rows, setRows] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [selectedSession, setSelectedSession] = useState('');
+
+    useEffect(() => {
+        if (!selectedSession) { setRows([]); return; }
+        setLoading(true);
+        fetch(apiUrl(`/sessions/${selectedSession}/emotion`), {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+            .then(r => r.json())
+            .then(data => setRows(data.responses || []))
+            .catch(() => setRows([]))
+            .finally(() => setLoading(false));
+    }, [selectedSession, token]);
+
+    const PA_IDS = ['Interested','Excited','Strong','Enthusiastic','Proud','Alert','Inspired','Determined','Attentive','Active'];
+    const NA_IDS = ['Distressed','Upset','Guilty','Ashamed','Afraid','Scared','Hostile','Irritable','Nervous','Jittery'];
+
+    return (
+        <div className="space-y-4">
+            <div className="bg-neutral-800 p-4 rounded border border-neutral-700">
+                <label className="block text-sm font-bold mb-2">Select Session</label>
+                <select
+                    value={selectedSession}
+                    onChange={e => setSelectedSession(e.target.value)}
+                    className="w-full bg-neutral-900 border border-neutral-700 rounded p-2 text-sm"
+                >
+                    <option value="">-- Select a session --</option>
+                    {sessionsList.map(s => (
+                        <option key={s.id} value={s.id}>
+                            Session #{s.id} — {s.username || s.student_name} — {s.case_name} — {new Date(s.start_time).toLocaleString()}
+                        </option>
+                    ))}
+                </select>
+            </div>
+
+            {loading ? (
+                <div className="text-center py-8 text-neutral-500">Loading…</div>
+            ) : selectedSession ? (
+                <div className="space-y-3">
+                    {rows.length === 0 ? (
+                        <div className="text-center py-8 text-neutral-500">
+                            No emotion responses recorded for this session
+                        </div>
+                    ) : (
+                        rows.map((r, i) => {
+                            const mins = Math.floor(r.elapsed_seconds / 60);
+                            const secs = r.elapsed_seconds % 60;
+                            const s = r.scores || {};
+                            const paTotal = PA_IDS.reduce((acc, k) => acc + (s[k] || 0), 0);
+                            const naTotal = NA_IDS.reduce((acc, k) => acc + (s[k] || 0), 0);
+
+                            return (
+                                <div key={r.id} className="bg-neutral-800 rounded-lg border border-neutral-700 p-4">
+                                    {/* Row header */}
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-neutral-500 text-sm font-mono">#{i + 1}</span>
+                                            <span className="font-mono text-sm text-white">{mins}m {String(secs).padStart(2, '0')}s</span>
+                                            <span className="text-neutral-400 text-xs">{new Date(r.submitted_at).toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <span className="px-2 py-0.5 rounded text-xs font-bold bg-emerald-900/50 text-emerald-400 border border-emerald-800">
+                                                PA {paTotal}/50
+                                            </span>
+                                            <span className="px-2 py-0.5 rounded text-xs font-bold bg-rose-900/50 text-rose-400 border border-rose-800">
+                                                NA {naTotal}/50
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Scores grid */}
+                                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
+                                        {/* PA column */}
+                                        <div>
+                                            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wide mb-1">Positive Affect</p>
+                                            {PA_IDS.map(id => (
+                                                <ScoreRow key={id} id={id} score={s[id]} pa={true} />
+                                            ))}
+                                        </div>
+                                        {/* NA column */}
+                                        <div>
+                                            <p className="text-xs font-bold text-rose-500 uppercase tracking-wide mb-1">Negative Affect</p>
+                                            {NA_IDS.map(id => (
+                                                <ScoreRow key={id} id={id} score={s[id]} pa={false} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            ) : (
+                <div className="text-center py-12 text-neutral-500">
+                    Select a session above to view its emotion responses
+                </div>
+            )}
+        </div>
+    );
+}
+
+// Single emotion score row used inside EmotionResponsesTable
+function ScoreRow({ id, score, pa }) {
+    const emoji = PANAS_EMOJI[id] ?? '❓';
+    const filled = score ?? 0;
+    return (
+        <div className="flex items-center gap-1.5 py-0.5">
+            <span className="text-sm leading-none">{emoji}</span>
+            <span className="text-xs text-neutral-300 w-[88px] shrink-0">{id}</span>
+            <div className="flex gap-0.5">
+                {[1,2,3,4,5].map(n => (
+                    <span key={n} className={`w-4 h-4 rounded-sm text-[10px] flex items-center justify-center font-bold ${
+                        n <= filled
+                            ? pa ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+                            : 'bg-neutral-700 text-neutral-600'
+                    }`}>{n}</span>
+                ))}
+            </div>
+            {score == null && <span className="text-xs text-neutral-600 italic ml-1">—</span>}
         </div>
     );
 }
